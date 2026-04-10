@@ -41,8 +41,7 @@ export default async function handler(req, res) {
         }
 
         const instructionPrefix = `Provide a detailed bullet-point summary of the following document. Each bullet should be a 3-5 line explanation of a major point. Use "•" for bullets.\n\nDocument:\n`;
-        const inputText = instructionPrefix + documentText.substring(0, 1024);
-
+        const inputText = `Task: Summarize the following document as a bulleted list. Each bullet should be a 3-5 line explanation of a major point.\n\nDocument: ${documentText.substring(0, 1024)}\n\nBullet Summary:`;
         const response = await fetch(
             "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn",
             {
