@@ -1,7 +1,15 @@
 // /api/summarize.js
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export default async function handler(req, res) {
+    // 🔓 CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Handle preflight OPTIONS request
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -12,26 +20,41 @@ export default async function handler(req, res) {
     }
 
     try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        // Call Hugging Face Inference API
+        const response = await fetch(
+            "https://api-inference.huggingface.co/models/facebook/bart-large-cnn",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${process.env.HF_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    inputs: documentText.substring(0, 1024), // BART works best with ~1024 chars
+                    parameters: {
+                        max_length: 250,
+                        min_length: 80,
+                        do_sample: false,
+                    },
+                }),
+            }
+        );
 
-        const prompt = `
-      You are an expert document analyst. Analyze the following document and create a concise summary.
-      For EVERY MAJOR POINT in the document, provide a 3-5 line summary explaining it clearly.
-      Format the output as a list of bullet points. Each bullet point should represent one major point and be 3-5 lines long.
-      Do not include any introductory or concluding text. Start directly with the bullet points.
-      
-      Document content:
-      ${documentText.substring(0, 30000)}
-    `;
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+        }
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
+        const data = await response.json();
+        const summaryText = data[0]?.summary_text;
 
-        res.status(200).json({ summary: text });
+        if (!summaryText) {
+            throw new Error("No summary returned from Hugging Face model.");
+        }
+
+        res.status(200).json({ summary: summaryText });
     } catch (error) {
-        console.error('Gemini API error:', error);
-        res.status(500).json({ error: 'Failed to generate summary' });
+        console.error('Summarization error:', error);
+        res.status(500).json({ error: error.message });
     }
 }
