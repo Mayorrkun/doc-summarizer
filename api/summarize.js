@@ -36,15 +36,6 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 🔧 Manually parse the request body
-        const body = await parseBody(req);
-        const { documentText } = body;
-
-        if (!documentText) {
-            return res.status(400).json({ error: 'Document text is required' });
-        }
-
-        // Call Hugging Face Inference API
         const response = await fetch(
             "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn",
             {
@@ -54,10 +45,10 @@ export default async function handler(req, res) {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    inputs: documentText.substring(0, 1024),
+                    inputs: `Provide a detailed bullet-point summary of the following text. Each bullet should be a 3-5 line explanation of a major point.\n\n${documentText.substring(0, 1024)}`,
                     parameters: {
-                        max_length: 250,
-                        min_length: 80,
+                        max_length: 400,
+                        min_length: 150,
                         do_sample: false,
                     },
                 }),
@@ -70,14 +61,16 @@ export default async function handler(req, res) {
         }
 
         const data = await response.json();
-        const summaryText = data[0]?.summary_text;
+        let summaryText = data[0]?.summary_text || "No summary generated.";
 
-        if (!summaryText) {
-            throw new Error("No summary returned from Hugging Face model.");
+        // Convert sentences to bullet points if they aren't already
+        if (!summaryText.includes('•')) {
+            const sentences = summaryText.match(/[^\.!\?]+[\.!\?]+/g) || [summaryText];
+            summaryText = sentences.map(s => `• ${s.trim()}`).join('\n\n');
         }
 
-        return res.status(200).json({ summary: summaryText });
-    } catch (error) {
+        res.status(200).json({ summary: summaryText });
+    }  catch (error) {
         console.error('Summarization error:', error);
         return res.status(500).json({ error: error.message });
     }
