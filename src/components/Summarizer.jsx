@@ -9,43 +9,23 @@ const Summarizer = ({ documentText }) => {
         setLoading(true);
         setError(null);
 
-        const HF_TOKEN = import.meta.env.VITE_HF_API_KEY;
-
         try {
-            const response = await fetch(
-                "https://api-inference.huggingface.co/models/facebook/bart-large-cnn",
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${HF_TOKEN}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        inputs: documentText.substring(0, 1024), // BART works best with ~1024 tokens
-                        parameters: {
-                            max_length: 250,
-                            min_length: 80,
-                            do_sample: false,
-                        },
-                    }),
-                }
-            );
+            // ✅ Call your own Vercel serverless function (same origin = no CORS)
+            const response = await fetch("/api/summarize", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ documentText }),
+            });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`API request failed: ${response.status} - ${errorText}`);
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Request failed: ${response.status}`);
             }
 
             const data = await response.json();
-
-            // Hugging Face returns an array with summary_text
-            const summaryText = data[0]?.summary_text;
-            if (!summaryText) {
-                throw new Error("No summary returned from model");
-            }
-
-            // Format bullet points manually (BART returns a paragraph, we'll split later if needed)
-            setSummary(summaryText);
+            setSummary(data.summary);
         } catch (err) {
             setError(`Could not generate summary: ${err.message}`);
             console.error(err);
@@ -68,7 +48,6 @@ const Summarizer = ({ documentText }) => {
                 <div className="summary-container">
                     <h2>📝 Key Points Summary</h2>
                     <div className="summary-content">
-                        {/* BART returns a paragraph; we display as is */}
                         <p>{summary}</p>
                     </div>
                 </div>
