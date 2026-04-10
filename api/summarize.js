@@ -1,6 +1,23 @@
 // /api/summarize.js
+
+// Helper function to read and parse the request body
+async function parseBody(req) {
+    return new Promise((resolve, reject) => {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString(); });
+        req.on('end', () => {
+            try {
+                resolve(JSON.parse(body || '{}'));
+            } catch (err) {
+                reject(new Error('Invalid JSON body'));
+            }
+        });
+        req.on('error', reject);
+    });
+}
+
 export default async function handler(req, res) {
-    // 🔓 EXPLICIT CORS HEADERS - Must be set for ALL responses
+    // CORS headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -9,7 +26,7 @@ export default async function handler(req, res) {
         'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
     );
 
-    // 🛑 Handle preflight OPTIONS request IMMEDIATELY
+    // Handle preflight
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
@@ -18,12 +35,16 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { documentText } = req.body;
-    if (!documentText) {
-        return res.status(400).json({ error: 'Document text is required' });
-    }
-
     try {
+        // 🔧 Manually parse the request body
+        const body = await parseBody(req);
+        const { documentText } = body;
+
+        if (!documentText) {
+            return res.status(400).json({ error: 'Document text is required' });
+        }
+
+        // Call Hugging Face Inference API
         const response = await fetch(
             "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn",
             {
