@@ -1,13 +1,10 @@
 // /api/summarize.js
-import { HfInference } from '@huggingface/inference';
-
 export default async function handler(req, res) {
-    // 🔓 CORS headers (Still needed for browser requests)
+    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
@@ -22,21 +19,39 @@ export default async function handler(req, res) {
     }
 
     try {
-        // ✨ Initialize the SDK with your Hugging Face token
-        const hf = new HfInference(process.env.HF_API_KEY);
+        // ✅ NEW Hugging Face Inference endpoint (Router)
+        const response = await fetch(
+            "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${process.env.HF_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    inputs: documentText.substring(0, 1024),
+                    parameters: {
+                        max_length: 250,
+                        min_length: 80,
+                        do_sample: false,
+                    },
+                }),
+            }
+        );
 
-        // ✨ Call the summarization method
-        const result = await hf.summarization({
-            model: 'facebook/bart-large-cnn',
-            inputs: documentText.substring(0, 1024),
-            parameters: {
-                max_length: 250,
-                min_length: 80,
-                do_sample: false,
-            },
-        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Hugging Face API error: ${response.status} - ${errorText}`);
+        }
 
-        res.status(200).json({ summary: result.summary_text });
+        const data = await response.json();
+        const summaryText = data[0]?.summary_text;
+
+        if (!summaryText) {
+            throw new Error("No summary returned from Hugging Face model.");
+        }
+
+        res.status(200).json({ summary: summaryText });
     } catch (error) {
         console.error('Summarization error:', error);
         res.status(500).json({ error: error.message });
