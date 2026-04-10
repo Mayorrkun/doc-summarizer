@@ -31,22 +31,23 @@ pdfjslib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudfare.com/ajax/libs/pdfjs/
                 return await file.text();
             }
         };
-        const onDrop = useCallback(async (acceptedFiles) => {
-            const file = acceptedFiles[0];
-            if (!file) return;
-            setLoading(true);
-            setError(null);
-            try {
-                const text = await extractText(file);
-                onTextExtracted(text);
-            } catch (err) {
-                setError('Could not read file. Try a different format.');
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        }, [onTextExtracted]);
-
+            const onDrop = useCallback(async (acceptedFiles) => {
+                const file = acceptedFiles[0];
+                if (!file) return;
+                setLoading(true);
+                setError(null);
+                try {
+                    console.log('File:', file.name, file.type, file.size);
+                    const text = await extractText(file);
+                    console.log('Extracted text length:', text.length);
+                    onTextExtracted(text);
+                } catch (err) {
+                    console.error('Extraction error:', err);  // <-- This is crucial
+                    setError(`Could not read file: ${err.message || 'Unknown error'}`);
+                } finally {
+                    setLoading(false);
+                }
+            }, [onTextExtracted]);
         const { getRootProps, getInputProps, isDragActive } = useDropzone({
             onDrop,
             accept: {
@@ -81,4 +82,3 @@ pdfjslib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudfare.com/ajax/libs/pdfjs/
     }
 
 export default FileUploader;
-    
