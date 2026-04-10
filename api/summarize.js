@@ -36,6 +36,18 @@ export default async function handler(req, res) {
     }
 
     try {
+        // Parse the request body
+        const body = await parseBody(req);
+        const { documentText } = body;   // <-- MAKE SURE THIS LINE EXISTS
+
+        if (!documentText) {
+            return res.status(400).json({ error: 'Document text is required' });
+        }
+
+        // Construct the input with instructions
+        const inputText = `Provide a detailed bullet-point summary of the following document. Each bullet should be a 3-5 line explanation of a major point. Use "•" for bullets.\n\nDocument:\n${documentText.substring(0, 1024)}`;
+
+        // Call Hugging Face Inference API
         const response = await fetch(
             "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn",
             {
@@ -45,7 +57,7 @@ export default async function handler(req, res) {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    inputs: `Provide a detailed bullet-point summary of the following text. Each bullet should be a 3-5 line explanation of a major point.\n\n${documentText.substring(0, 1024)}`,
+                    inputs: inputText,
                     parameters: {
                         max_length: 400,
                         min_length: 150,
@@ -63,15 +75,15 @@ export default async function handler(req, res) {
         const data = await response.json();
         let summaryText = data[0]?.summary_text || "No summary generated.";
 
-        // Convert sentences to bullet points if they aren't already
+        // Convert to bullet points if not already
         if (!summaryText.includes('•')) {
             const sentences = summaryText.match(/[^\.!\?]+[\.!\?]+/g) || [summaryText];
             summaryText = sentences.map(s => `• ${s.trim()}`).join('\n\n');
         }
 
         res.status(200).json({ summary: summaryText });
-    }  catch (error) {
+    } catch (error) {
         console.error('Summarization error:', error);
-        return res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message });
     }
 }
