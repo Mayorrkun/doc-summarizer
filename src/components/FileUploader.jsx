@@ -4,7 +4,7 @@ import * as pdfjslib from "pdfjs-dist";
 import mammoth from "mammoth";
 
 //Set pdf.js worker
-pdfjslib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdfjs/${pdfjslib.version}/pdf.worker.min.js`;
+pdfjslib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdfjs/3.11.174/pdf.worker.min.js`;
 
         const FileUploader = ({onTextExtracted}) => {
         const [loading , setLoading] = useState(false);
