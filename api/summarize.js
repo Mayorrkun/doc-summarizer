@@ -1,10 +1,15 @@
 // /api/summarize.js
 export default async function handler(req, res) {
-    // CORS headers
+    // 🔓 EXPLICIT CORS HEADERS - Must be set for ALL responses
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    );
 
+    // 🛑 Handle preflight OPTIONS request IMMEDIATELY
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
@@ -19,7 +24,6 @@ export default async function handler(req, res) {
     }
 
     try {
-        // ✅ NEW Hugging Face Inference endpoint (Router)
         const response = await fetch(
             "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn",
             {
@@ -51,9 +55,9 @@ export default async function handler(req, res) {
             throw new Error("No summary returned from Hugging Face model.");
         }
 
-        res.status(200).json({ summary: summaryText });
+        return res.status(200).json({ summary: summaryText });
     } catch (error) {
         console.error('Summarization error:', error);
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 }
